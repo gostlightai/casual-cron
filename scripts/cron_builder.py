@@ -59,17 +59,6 @@ CHANNEL_PATTERNS = [
     (r'\bon\s*signal\b|signal', 'signal'),
 ]
 
-PURPOSE_MESSAGES = [
-    (r'ikigai', 'Ikigai Journal\n\n1. Purpose - What gives you energy today?\n2. Food - Hara Hachi Bu goal?\n3. Movement - One move today?\n4. Connection - Who will you connect with?\n5. Gratitude - One thing grateful for?'),
-    (r'water|hydrat', 'Time to drink water! Stay hydrated!'),
-    (r'exercise|workout|movement', 'Time to move! Even a 10-minute walk makes a difference.'),
-    (r'meditat|mindful', 'Take a moment to breathe. 5 minutes of stillness.'),
-    (r'morning', 'Good morning! Time for your daily check-in.'),
-    (r'evening|night', 'Evening check-in! How was your day?'),
-    (r'weekly|week', 'Weekly check-in!\n\n1. What went well this week?\n2. What could improve?\n3. Goal for next week?'),
-]
-
-DEFAULT_MESSAGE = 'Your scheduled reminder is here!'
 
 
 def _parse_time(text):
@@ -151,12 +140,32 @@ def _parse_destination(text, channel):
 
 
 def _parse_message(text):
-    """Determine purpose-appropriate message."""
-    lower = text.lower()
-    for pattern, msg in PURPOSE_MESSAGES:
-        if re.search(pattern, lower):
-            return msg
-    return DEFAULT_MESSAGE
+    """Extract the user's actual message by stripping scheduling noise."""
+    msg = re.sub(
+        r'^(create|set\s*up|schedule|add|remind\s*me\s*to?|send\s*me)\s+',
+        '', text.strip(), flags=re.IGNORECASE,
+    )
+    # Strip "a/an" article left at the start after prefix removal
+    msg = re.sub(r'^(an?\s+)', '', msg, flags=re.IGNORECASE)
+    # Strip "in N minutes/min/m" for one-shot
+    msg = re.sub(r'\s*\bin\s+\d+\s*(minutes?|min|m)\b', '', msg, flags=re.IGNORECASE)
+    # Strip channel references
+    msg = re.sub(r'\s+on\s+(telegram|whatsapp|slack|discord|signal)\b', '', msg, flags=re.IGNORECASE)
+    # Strip time references
+    msg = re.sub(r'\s+at\s+\d{1,2}[.:]\d{2}\s*(am|pm)?', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'\s+at\s+\d{1,2}\s*(am|pm)', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'\s+at\s+(noon|midnight)', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'^at\s+\d{1,2}[.:]\d{2}\s*(am|pm)?', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'^at\s+\d{1,2}\s*(am|pm)', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'^at\s+(noon|midnight)', '', msg, flags=re.IGNORECASE)
+    # Strip frequency words
+    msg = re.sub(r'\b(a\s+)?(daily|weekly|monthly|hourly|every\s+\d+\s+(hours?|minutes?|min|m))\s*', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'\bevery\s*(day|hour)\b', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'\b(mondays?|tuesdays?|wednesdays?|thursdays?|fridays?|saturdays?|sundays?)\b', '', msg, flags=re.IGNORECASE)
+    msg = re.sub(r'\bweekdays?\b', '', msg, flags=re.IGNORECASE)
+    # Clean up
+    msg = msg.strip().strip('"\'').strip()
+    return msg if msg else 'Reminder'
 
 
 def _generate_name(text, freq_type):

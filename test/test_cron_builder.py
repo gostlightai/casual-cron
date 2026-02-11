@@ -179,13 +179,21 @@ class TestEdgeCases(unittest.TestCase):
         parsed = parse('Send me a quote on discord at 8am')
         self.assertEqual(parsed['channel'], 'discord')
 
-    def test_ikigai_message(self):
-        parsed = parse('Create a daily Ikigai reminder at 8:45am')
-        self.assertIn('Ikigai', parsed['message'])
+    def test_message_passthrough_drink_water(self):
+        parsed = parse('remind me to drink water every 2 hours')
+        self.assertEqual(parsed['message'], 'drink water')
 
-    def test_water_message(self):
-        parsed = parse('Remind me to drink water every 2 hours')
-        self.assertIn('hydrated', parsed['message'])
+    def test_message_passthrough_strip_time(self):
+        parsed = parse('at 3pm take the dog out')
+        self.assertEqual(parsed['message'], 'take the dog out')
+
+    def test_message_passthrough_strip_all(self):
+        parsed = parse('daily standup on slack at 9am')
+        self.assertEqual(parsed['message'], 'standup')
+
+    def test_message_fallback_reminder(self):
+        parsed = parse('at 3pm')
+        self.assertEqual(parsed['message'], 'Reminder')
 
     def test_command_has_all_required_flags(self):
         parsed = parse('Daily reminder at 8am on telegram')
